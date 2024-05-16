@@ -1,77 +1,116 @@
 %% Code from Prac4 for 3DOF spiraling upwards sim
 %% We need to edit so that it traces our flight path
 
-%% Preamble and Configuration
-% addpath('../supportingFiles') % Makes the supporting functions available 
-% to matlab by adding the path to the Matlab Search Path for this session 
-% (it gets removed when matlab is closed).
+%% Initialise time vector
 
-%% (Task 1) Time vector 
-% TODO: define total simulation time, time step and initialise the time 
-% vector
-tf = 5;     % Simulation duration
-dt = 0.01;  % Time step (sampling time)
+tf = 300;     % Simulation duration
+dt = 0.1;  % Time step (sampling time)
 t = 0:dt:tf-dt;
 num_samples = length(t);
 
-%% (Task 2) State and Input vectors 
-% TODO: create a vector 'v' for the airplane's speed and a vector 'h' for 
 
-% its heading
-v = 10*ones(1,num_samples);
+%% Flight path values
+thetaClimb = deg2rad(10); 
+thetaDescent = deg2rad(10);
+thetaCruise = 0;
+CruiseAlt = 457.2;
 
-% spiral up
-psi = 6*pi*[linspace(0,1,num_samples)];
+%% initialise flight path variables
 
-% constant heading changes
-%  heading = pi/180*[0*ones(1,length(t)/2) 45*ones(1,length(t)/2)];
+theta = thetaClimb; %flight path angle
+psi = 0; %bank angle
 
-% S shape
-% psi = [pi/180*(0)*ones(1,50)...
-%            pi/180*(90)*linspace(0,1,150) ...
-%            pi/180*(90)*ones(1,100) ...
-%            pi/180*(90)*linspace(1,0,150) ...
-%            pi/180*(0)*ones(1,50)]; % S-shape
-
-theta = deg2rad(10)*ones(1,num_samples); % gamma - flight path angle
-
-% TODO: initialise the state vector with the airplane position
+%% Initialise aircraft state vectors
 x = zeros(1,num_samples);
 y = zeros(1,num_samples);
 z = zeros(1,num_samples);
+psiV = zeros(1,num_samples);
+thetaV = zeros(1,num_samples);
+v = 66.67*ones(1,num_samples); %240km/h (129.59kts) cruise speed
 
-%% (Task 3) Simulation 
-% TODO: Simulate the 2D trajectory based on the speed and heading vectors
-% (hint: use a for-loop)
 for i = 2:num_samples
-    %TODO: Implement the 2D kinematic equations of motion for every sample
-    x(i) = x(i-1) + dt*v(i-1)*cos(theta(i-1))*cos(psi(i-1));
-    y(i) = y(i-1) + dt*v(i-1)*cos(theta(i-1))*sin(psi(i-1));
-    z(i) = z(i-1) + dt*v(i-1)*sin(theta(i-1));
+    
+    %2D kinematic equations
+    x(i) = x(i-1) + dt*v(i-1)*cos(theta)*cos(psi);
+    y(i) = y(i-1) + dt*v(i-1)*cos(theta)*sin(psi);
+    z(i) = z(i-1) + dt*v(i-1)*sin(theta);
+    
+    %break from for loop on touchdown and remove extra zeros from initialised
+    %vectors
+    if z(i) < 0 
+        disp("loop break")
+        xF = x(1:i);
+        yF = y(1:i);
+        zF = z(1:i);
+        psiVF = psiV(1:i);
+        thetaVF = thetaV(1:i);
+        tF = t(1:i);
+        break
+    end
+   
+
+    %% The values of the following code can be edited to change the dimensions of the circuit
+
+    if z(i) > CruiseAlt && x(i) > 0 %1500 ft after climb away from runway
+        theta = thetaCruise; %level plane
+        
+        if psi < deg2rad(180) %check if aircraft needs to bank
+            
+            if psi == 0
+                Lclimb = x(i);% find distance of climb to be used as reference for descent
+            end
+           
+            psi = psi+deg2rad(0.3); %rate 1 turn 3deg/s (dt is 0.1)
+        end
+    end
+    
+    
+    if z(i) > 457.2 && x(i) <= ((-1)*Lclimb) %1500ft cruising and ready to bank for runway alignment
+
+        if psi < deg2rad(360)
+            psi = psi+deg2rad(0.3); %bank towards runway
+  
+        end    
+    end
+    
+    %% update theta for descent
+    %359.8 was used as control angle to fix matlab rounding accuracy error
+    %in deg2rad conversion
+    if psi >= deg2rad(359.8)
+                psi = deg2rad(360);
+                theta = thetaDescent;
+
+    end
+    
+    %update psi and theta value for later plotting
+    psiV(i) = psi; 
+    thetaV(i) = theta;
 end
-%% (Task 4) Plotting 
-% TODO: Plot the 2D(x,y) or 3D (x,y,z) trajectory
+
+
+
+
+%% 3D Trajectory plot
 f1 = figure(1); hold off
     %plot(x,y,'LineWidth',1); grid on
-    plot3(x,y,z,'LineWidth',1); grid on
+    plot3(xF,yF,zF,'LineWidth',1); grid on
     title('2D trajectory');
     xlabel('x (m)');
     ylabel('y (m)');
     axis equal
 
-% TODO: Create a two-axis plot showing the airplane's heading (left) and 
-% x position (left) versus time.
+%% aircraft heading and x position against time
 f2 = figure(2); hold off
     clf; hold on;
     yyaxis left
-    plot(t,psi);
+    plot(tF,psiVF);
     ylabel('Heading (rad)');
     yyaxis right
-    plot(t,x, '-*');
+    plot(tF,xF, '-*');
     ylabel('x (m)');
     hold off;
     grid on;
     
     title('Flight Heading and Position in x');
     xlabel('Time (s)');
-    xlim([0,tf]);
+    xlim([0,(length(tF)*dt)]);
