@@ -1,5 +1,10 @@
-%% Code from Prac4 for 3DOF spiraling upwards sim
-%% We need to edit so that it traces our flight path
+%% The following program will display the following flight path:
+%climb to 1500ft (457.2m) at flight path angle of 10 degrees, level off and rate one bank turn 180degrees, 
+%cruise at 1500ft until aircraft reaches same distance from runway that it was when climb finished,
+%rate one bank turn 180 degrees, descend at flight path angle -10 degrees until reach 0 altitude
+
+%%parameters can be adjusted to change the flight path.
+
 
 %% Initialise time vector
 
