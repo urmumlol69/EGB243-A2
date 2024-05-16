@@ -1,0 +1,77 @@
+%% Code from Prac4 for 3DOF spiraling upwards sim
+%% We need to edit so that it traces our flight path
+
+%% Preamble and Configuration
+% addpath('../supportingFiles') % Makes the supporting functions available 
+% to matlab by adding the path to the Matlab Search Path for this session 
+% (it gets removed when matlab is closed).
+
+%% (Task 1) Time vector 
+% TODO: define total simulation time, time step and initialise the time 
+% vector
+tf = 5;     % Simulation duration
+dt = 0.01;  % Time step (sampling time)
+t = 0:dt:tf-dt;
+num_samples = length(t);
+
+%% (Task 2) State and Input vectors 
+% TODO: create a vector 'v' for the airplane's speed and a vector 'h' for 
+
+% its heading
+v = 10*ones(1,num_samples);
+
+% spiral up
+psi = 6*pi*[linspace(0,1,num_samples)];
+
+% constant heading changes
+%  heading = pi/180*[0*ones(1,length(t)/2) 45*ones(1,length(t)/2)];
+
+% S shape
+% psi = [pi/180*(0)*ones(1,50)...
+%            pi/180*(90)*linspace(0,1,150) ...
+%            pi/180*(90)*ones(1,100) ...
+%            pi/180*(90)*linspace(1,0,150) ...
+%            pi/180*(0)*ones(1,50)]; % S-shape
+
+theta = deg2rad(10)*ones(1,num_samples); % gamma - flight path angle
+
+% TODO: initialise the state vector with the airplane position
+x = zeros(1,num_samples);
+y = zeros(1,num_samples);
+z = zeros(1,num_samples);
+
+%% (Task 3) Simulation 
+% TODO: Simulate the 2D trajectory based on the speed and heading vectors
+% (hint: use a for-loop)
+for i = 2:num_samples
+    %TODO: Implement the 2D kinematic equations of motion for every sample
+    x(i) = x(i-1) + dt*v(i-1)*cos(theta(i-1))*cos(psi(i-1));
+    y(i) = y(i-1) + dt*v(i-1)*cos(theta(i-1))*sin(psi(i-1));
+    z(i) = z(i-1) + dt*v(i-1)*sin(theta(i-1));
+end
+%% (Task 4) Plotting 
+% TODO: Plot the 2D(x,y) or 3D (x,y,z) trajectory
+f1 = figure(1); hold off
+    %plot(x,y,'LineWidth',1); grid on
+    plot3(x,y,z,'LineWidth',1); grid on
+    title('2D trajectory');
+    xlabel('x (m)');
+    ylabel('y (m)');
+    axis equal
+
+% TODO: Create a two-axis plot showing the airplane's heading (left) and 
+% x position (left) versus time.
+f2 = figure(2); hold off
+    clf; hold on;
+    yyaxis left
+    plot(t,psi);
+    ylabel('Heading (rad)');
+    yyaxis right
+    plot(t,x, '-*');
+    ylabel('x (m)');
+    hold off;
+    grid on;
+    
+    title('Flight Heading and Position in x');
+    xlabel('Time (s)');
+    xlim([0,tf]);
