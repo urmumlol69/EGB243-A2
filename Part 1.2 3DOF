@@ -1,30 +1,32 @@
 %% Flight Path Simulation and Plotting
 
 % Simulation parameters
-tf = 5000;       % Simulation duration
-dt = 0.1;       % Time step (sampling time)
+tf = 500;       % Simulation duration in seconds
+dt = 0.1;       % Time step (sampling time) in seconds
 t = 0:dt:tf-dt; % Time vector
-num_samples = length(t);
+num_samples = length(t); % Number of samples
 
 % Flight path values (in radians)
-thetaClimb = deg2rad(10); 
-thetaDescent = deg2rad(-10);
-thetaCruise = 0;
-CruiseAlt = 457.2; % 1500 ft in meters
-
+thetaClimb = deg2rad(10);     % Climb angle in radians
+thetaDescent = deg2rad(-10);  % Descent angle in radians
+thetaCruise = 0;              % Cruise angle (level flight) in radians
+CruiseAlt = 457.2;            % Cruise altitude (1500 ft) in meters
 
 % Initialize flight path variables
-theta = thetaClimb; % Flight path angle
-psi = 0;            % Bank angle
+theta = thetaClimb; % Initial flight path angle (climb)
+psi = 0;            % Initial bank angle
 
 % Initialize aircraft state vectors
-x = zeros(1, num_samples);
-y = zeros(1, num_samples);
-z = zeros(1, num_samples);
-psiV = zeros(1, num_samples);
-thetaV = zeros(1, num_samples);
-v = 66.67 * ones(1, num_samples); % 240 km/h (129.59 kts) cruise speed
+x = zeros(1, num_samples);    % Position in x-direction
+y = zeros(1, num_samples);    % Position in y-direction
+z = zeros(1, num_samples);    % Position in z-direction (altitude)
+psiV = zeros(1, num_samples); % Bank angle vector
+thetaV = zeros(1, num_samples); % Flight path angle vector
+v = 66.67 * ones(1, num_samples); % Constant cruise speed (240 km/h)
 
+% Initialize distance markers
+Lclimb = 0;
+Ldist = 0;
 
 for i = 2:num_samples
     % Update position using 2D kinematic equations
@@ -37,28 +39,39 @@ for i = 2:num_samples
         break;
     end
 
-    % Climb phase
-    if z(i) > CruiseAlt && x(i) > 0
-        theta = thetaCruise; % Level off
-        if psi < deg2rad(180) % Bank turn
-            if psi == 0
-                Lclimb = x(i); % Distance of climb for descent reference
-            end
-            psi = psi + deg2rad(0.3); % Rate one turn
+    % Climb phase logic
+    if z(i) > CruiseAlt && theta == thetaClimb
+        theta = thetaCruise; % Level off at cruise altitude
+        Lclimb = x(i);       % Record distance of climb for descent reference
+    end
+    
+    % Bank turn logic after climb phase
+    if theta == thetaCruise && psi < deg2rad(90)
+        psi = psi + deg2rad(0.3); % Rate one turn to 90 degrees
+        if psi >= deg2rad(90)
+            Ldist90 = y(i); % Record distance at 90 degrees for descent alignment
+            psi = deg2rad(90);
+        end
+    elseif theta == thetaCruise && psi >= deg2rad(90) && psi < deg2rad(180) && y(i) >= Lclimb
+        psi = psi + deg2rad(0.3); % Continue banking towards 180 degrees
+        if psi >= deg2rad(180)
+            psi = deg2rad(180);
+        end
+    elseif theta == thetaCruise && psi >= deg2rad(180) && psi < deg2rad(270) && x(i) <= -Lclimb
+        psi = psi + deg2rad(0.3); % Continue banking towards 270 degrees
+        if psi >= deg2rad(270)
+            psi = deg2rad(270);
+        end    
+    elseif theta == thetaCruise && psi >= deg2rad(270) && psi < deg2rad(360) && y(i) <= Ldist90
+        psi = psi + deg2rad(0.3); % Continue banking towards 360 degrees
+        if psi >= deg2rad(360)
+            psi = deg2rad(360);
         end
     end
 
-    % Cruise phase with second bank turn for runway alignment
-    if z(i) > CruiseAlt && x(i) <= -Lclimb
-        if psi < deg2rad(360)
-            psi = psi + deg2rad(0.3); % Bank towards runway
-        end
-    end
-
-    % Descent phase
-    if psi >= deg2rad(359.8)
-        psi = deg2rad(360);
-        theta = thetaDescent;
+    % Descent phase logic
+    if psi >= deg2rad(360) && theta == thetaCruise
+        theta = thetaDescent; % Start descent after completing 360-degree turn
     end
 
     % Update psi and theta for plotting
@@ -66,7 +79,7 @@ for i = 2:num_samples
     thetaV(i) = theta;
 end
 
-% Trim unused vector portions
+% Trim unused vector portions based on flight duration
 xF = x(1:i);
 yF = y(1:i);
 zF = z(1:i);
@@ -87,10 +100,10 @@ axis equal;
 figure(2);
 clf; hold on;
 yyaxis left
-plot(tF, psiVF);
+plot(tF, psiVF); % Plot heading angle over time
 ylabel('Heading (rad)');
 yyaxis right
-plot(tF, xF, '-*');
+plot(tF, xF, '-*'); % Plot x position over time
 ylabel('x (m)');
 grid on;
 title('Flight Heading and Position in x');
