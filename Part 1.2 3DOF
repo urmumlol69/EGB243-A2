@@ -22,7 +22,7 @@ y = zeros(1, num_samples);    % Position in y-direction
 z = zeros(1, num_samples);    % Position in z-direction (altitude)
 psiV = zeros(1, num_samples); % Bank angle vector
 thetaV = zeros(1, num_samples); % Flight path angle vector
-v = 66.67 * ones(1, num_samples); % Constant cruise speed (240 km/h)
+v = 66.88 * ones(1, num_samples); % Constant cruise speed (130kts)
 
 % Initialize distance markers
 Lclimb = 0;
