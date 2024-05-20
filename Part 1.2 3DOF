@@ -1,121 +1,99 @@
-%% The following program will display the following flight path:
-%climb to 1500ft (457.2m) at flight path angle of 10 degrees, level off and rate one bank turn 180degrees, 
-%cruise at 1500ft until aircraft reaches same distance from runway that it was when climb finished,
-%rate one bank turn 180 degrees, descend at flight path angle -10 degrees until reach 0 altitude
+%% Flight Path Simulation and Plotting
 
-%%parameters can be adjusted to change the flight path.
-
-
-%% Initialise time vector
-
-tf = 300;     % Simulation duration
-dt = 0.1;  % Time step (sampling time)
-t = 0:dt:tf-dt;
+% Simulation parameters
+tf = 5000;       % Simulation duration
+dt = 0.1;       % Time step (sampling time)
+t = 0:dt:tf-dt; % Time vector
 num_samples = length(t);
 
-
-%% Flight path values
+% Flight path values (in radians)
 thetaClimb = deg2rad(10); 
-thetaDescent = deg2rad(10);
+thetaDescent = deg2rad(-10);
 thetaCruise = 0;
-CruiseAlt = 457.2;
+CruiseAlt = 457.2; % 1500 ft in meters
 
-%% initialise flight path variables
 
-theta = thetaClimb; %flight path angle
-psi = 0; %bank angle
+% Initialize flight path variables
+theta = thetaClimb; % Flight path angle
+psi = 0;            % Bank angle
 
-%% Initialise aircraft state vectors
-x = zeros(1,num_samples);
-y = zeros(1,num_samples);
-z = zeros(1,num_samples);
-psiV = zeros(1,num_samples);
-thetaV = zeros(1,num_samples);
-v = 66.67*ones(1,num_samples); %240km/h (129.59kts) cruise speed
+% Initialize aircraft state vectors
+x = zeros(1, num_samples);
+y = zeros(1, num_samples);
+z = zeros(1, num_samples);
+psiV = zeros(1, num_samples);
+thetaV = zeros(1, num_samples);
+v = 66.67 * ones(1, num_samples); % 240 km/h (129.59 kts) cruise speed
+
 
 for i = 2:num_samples
+    % Update position using 2D kinematic equations
+    x(i) = x(i-1) + dt * v(i-1) * cos(theta) * cos(psi);
+    y(i) = y(i-1) + dt * v(i-1) * cos(theta) * sin(psi);
+    z(i) = z(i-1) + dt * v(i-1) * sin(theta);
     
-    %2D kinematic equations
-    x(i) = x(i-1) + dt*v(i-1)*cos(theta)*cos(psi);
-    y(i) = y(i-1) + dt*v(i-1)*cos(theta)*sin(psi);
-    z(i) = z(i-1) + dt*v(i-1)*sin(theta);
-    
-    %break from for loop on touchdown and remove extra zeros from initialised
-    %vectors
+    % Break loop on touchdown and trim unused vector portions
     if z(i) < 0 
-        disp("loop break")
-        xF = x(1:i);
-        yF = y(1:i);
-        zF = z(1:i);
-        psiVF = psiV(1:i);
-        thetaVF = thetaV(1:i);
-        tF = t(1:i);
-        break
+        break;
     end
-   
 
-    %% The values of the following code can be edited to change the dimensions of the circuit
-
-    if z(i) > CruiseAlt && x(i) > 0 %1500 ft after climb away from runway
-        theta = thetaCruise; %level plane
-        
-        if psi < deg2rad(180) %check if aircraft needs to bank
-            
+    % Climb phase
+    if z(i) > CruiseAlt && x(i) > 0
+        theta = thetaCruise; % Level off
+        if psi < deg2rad(180) % Bank turn
             if psi == 0
-                Lclimb = x(i);% find distance of climb to be used as reference for descent
+                Lclimb = x(i); % Distance of climb for descent reference
             end
-           
-            psi = psi+deg2rad(0.3); %rate 1 turn 3deg/s (dt is 0.1)
+            psi = psi + deg2rad(0.3); % Rate one turn
         end
     end
-    
-    
-    if z(i) > 457.2 && x(i) <= ((-1)*Lclimb) %1500ft cruising and ready to bank for runway alignment
 
+    % Cruise phase with second bank turn for runway alignment
+    if z(i) > CruiseAlt && x(i) <= -Lclimb
         if psi < deg2rad(360)
-            psi = psi+deg2rad(0.3); %bank towards runway
-  
-        end    
+            psi = psi + deg2rad(0.3); % Bank towards runway
+        end
     end
-    
-    %% update theta for descent
-    %359.8 was used as control angle to fix matlab rounding accuracy error
-    %in deg2rad conversion
-    if psi >= deg2rad(359.8)
-                psi = deg2rad(360);
-                theta = thetaDescent;
 
+    % Descent phase
+    if psi >= deg2rad(359.8)
+        psi = deg2rad(360);
+        theta = thetaDescent;
     end
-    
-    %update psi and theta value for later plotting
+
+    % Update psi and theta for plotting
     psiV(i) = psi; 
     thetaV(i) = theta;
 end
 
-
-
+% Trim unused vector portions
+xF = x(1:i);
+yF = y(1:i);
+zF = z(1:i);
+psiVF = psiV(1:i);
+thetaVF = thetaV(1:i);
+tF = t(1:i);
 
 %% 3D Trajectory plot
-f1 = figure(1); hold off
-    %plot(x,y,'LineWidth',1); grid on
-    plot3(xF,yF,zF,'LineWidth',1); grid on
-    title('2D trajectory');
-    xlabel('x (m)');
-    ylabel('y (m)');
-    axis equal
+figure(1);
+plot3(xF, yF, zF, 'LineWidth', 1); grid on;
+title('3D Trajectory');
+xlabel('x (m)');
+ylabel('y (m)');
+zlabel('z (m)');
+axis equal;
 
-%% aircraft heading and x position against time
-f2 = figure(2); hold off
-    clf; hold on;
-    yyaxis left
-    plot(tF,psiVF);
-    ylabel('Heading (rad)');
-    yyaxis right
-    plot(tF,xF, '-*');
-    ylabel('x (m)');
-    hold off;
-    grid on;
-    
-    title('Flight Heading and Position in x');
-    xlabel('Time (s)');
-    xlim([0,(length(tF)*dt)]);
+%% Aircraft heading and x position against time
+figure(2);
+clf; hold on;
+yyaxis left
+plot(tF, psiVF);
+ylabel('Heading (rad)');
+yyaxis right
+plot(tF, xF, '-*');
+ylabel('x (m)');
+grid on;
+title('Flight Heading and Position in x');
+xlabel('Time (s)');
+xlim([0, (length(tF) * dt)]);
+hold off;
